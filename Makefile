@@ -15,5 +15,13 @@ mybot: competitor.o
 competitor.o: competitor.cpp
 	$(CXX) competitor.cpp $(CXXFLAGS) -c
 
+# for bot testing purposes, edit these
+mybot_rich: competitor_rich.o
+	$(CXX) -o mybot_rich kirin.o competitor_rich.o $(CXXFLAGS)
+
+competitor_rich.o: competitor_rich.cpp
+	$(CXX) competitor_rich.cpp $(CXXFLAGS) -c
+
+
 clean:
 	rm -f competitor.o mybot
