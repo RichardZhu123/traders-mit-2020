@@ -11,8 +11,9 @@
 #include <unordered_set>
 #include <queue>
 
-std::queue<double> lastPrices; // stores the last 1000 prices
-double smaThousand; // sma of up to the last 1000 prices
+std::queue<price_t> lastPrices; // stores the last 1000 prices
+price_t smaThousand; // sma of up to the last 1000 prices
+price_t maxSpread = 0.01; // max bid-ask spread
 
 struct LimitOrder {
   price_t price;
@@ -382,24 +383,45 @@ public:
     // a way to get your current position
     quantity_t position = state.positions[0];
     quantity_t position_limit = 2000; // Position limit
+    quantity_t sma_size = 1000; // last sma_size values used in sma
+    price_t sma_spread = .05; // minimum spread around sma that is tolerated
 
     // a way to put in a bid of quantity 1 at the current best bid
-    double ba_midpoint = (state.get_bbo(0, true) + state.get_bbo(0, false))/2.0; // bid-ask midpoint
-    if(lastPrices.size() < 1000) 
-      lastPrices.push(ba_midpoint);
-    smaThousand * lastPrices
+    price_t best_bid = state.get_bbo(0, true);
+    price_t best_offer = state.get_bbo(0, false);
+    price_t ba_midpoint = (best_bid + best_offer)/(price_t)2.0; // bid-ask midpoint
+    price_t proposed_price; // proposed buy/sell price
+    quantity_t proposed_quantity; // proposed buy/sell quantity
 
-    if (update.buy && position < position_limit && update.quantity >= 5000) { // buy
+    // calculate SMA
+    lastPrices.push(ba_midpoint);
+    if (lastPrices.size() >= sma_size) {
+      smaThousand = smaThousand + (ba_midpoint - lastPrices.front())/(sma_size);
+      lastPrices.pop();
+    } else {
+      quantity_t smaQueueSize = lastPrices.size();
+      smaThousand = (smaThousand * (smaQueueSize - 1) + ba_midpoint)/(smaQueueSize);
+    }
 
-      place_order(com, Common::Order{
-        .ticker = 0,
-        .price = std::max(update.price + .02, 0.0),
-        .quantity = (position_limit - position)/4,
-        .buy = true,
-        .ioc = false,
-        .order_id = 0, // this order ID will be chosen randomly by com
-        .trader_id = trader_id
-      });
+    if (best_offer - best_bid > maxSpread) {
+      maxSpread = best_offer - best_bid;
+    }
+
+    if (update.buy && position < position_limit) { // buy
+      proposed_price = std::max(std::min(best_bid + .02, smaThousand - sma_spread), 0.0);
+      proposed_quantity = (proposed_price - best_bid) / maxSpread * (position_limit - position) / .5;
+
+      if (proposed_price > 0 && proposed_quantity > 0) {
+        place_order(com, Common::Order{
+          .ticker = 0,
+          .price = proposed_price,
+          .quantity = proposed_quantity,
+          .buy = true,
+          .ioc = false,
+          .order_id = 0, // this order ID will be chosen randomly by com
+          .trader_id = trader_id
+        });
+      }
 
       /*
       std::cout << "SELL ORDER" << std::endl;
@@ -408,17 +430,22 @@ public:
       std::cout << "best bid: " << best_bid << std::endl;
       std::cout << "---------------------------------" << std::endl;*/
     }
-    else if (!update.buy && position > -position_limit && update.quantity >= 5000) { // sell
+    else if (!update.buy && position > -position_limit) { // sell
+      proposed_price = std::max(std::max(best_offer - .02, smaThousand + sma_spread), 0.0);
+      proposed_quantity = (best_offer - proposed_price) / maxSpread * (position + position_limit) / .5;
 
-      place_order(com, Common::Order{
-        .ticker = 0,
-        .price = std::max(update.price - .02, 0.0),
-        .quantity = (position + position_limit)/4,
-        .buy = false,
-        .ioc = false,
-        .order_id = 0, // this order ID will be chosen randomly by com
-        .trader_id = trader_id
-      });
+      if (proposed_price > 0 && proposed_quantity > 0) {
+        place_order(com, Common::Order{
+          .ticker = 0,
+          .price = proposed_price,
+          .quantity = proposed_quantity,
+          .buy = false,
+          .ioc = false,
+          .order_id = 0, // this order ID will be chosen randomly by com
+          .trader_id = trader_id
+        });
+      }
+      
       /*
       std::cout << "BUY ORDER" << std::endl;
       std::cout << "quantity: " << (position_limit - position)/5 << std::endl;
@@ -458,7 +485,7 @@ public:
       price_t pnl = state.get_pnl();
       
 
-      std::cout << "got trade with me; pnl = "
+      std::cout << "R: got trade with me; pnl = "
                 << std::setw(15) << std::left << pnl
                 << " position = "
                 << std::setw(10) << std::left << state.positions[0]

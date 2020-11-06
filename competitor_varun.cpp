@@ -421,45 +421,53 @@ public:
 
     // weight this by volumes ... ?
     // current mid price
-    price_t fair_price = state.books->get_mid_price(0.5 * spread_size + best_bid);
+    // price_t fair_price = state.books->get_mid_price(0.5 * spread_size + best_bid);
 
     // bid size
-    quantity_t bid_size = state.books->quote_size(true);
-    quantity_t offer_size = state.books->quote_size(false);
+    //quantity_t bid_size = state.books->quote_size(true);
+    //quantity_t offer_size = state.books->quote_size(false);
 
     // bot params
     price_t bid_edge = 0.02;
     price_t ask_edge = 0.02;
+    quantity_t pos_limit = 1800;
 
     // price_t adjust = 0.01;
-    price_t edge_range = 0.05;
+    price_t edge_range = 0.10;
 
-    // check for competing bids and penny the competing bid within pricing flexibility
-    price_t bid_price = (update.buy && best_bid + bid_edge == update.price && update.price + 0.01 <= best_bid + bid_edge + edge_range) ? update.price + 0.01 : best_bid + bid_edge;
-
-    // check for competing asks and penny the competing ask witihn pricing flexibility
-    price_t ask_price = (!update.buy && best_offer - ask_edge == update.price && update.price - 0.01 >= best_offer - ask_edge - edge_range) ? update.price - 0.01 : best_offer - ask_edge;
-
-    if (spread_size >= bid_edge + ask_edge + 2 * edge_range && best_bid != 0.0 && std::abs(position) <= 2000)
+    if (spread_size >= bid_edge + ask_edge + 2 * edge_range && best_bid != 0.0)
     { // 0.0 denotes no bid
 
-      place_order(com, Common::Order{
-                           .ticker = 0,
-                           .price = bid_price,
-                           .quantity = 750,
-                           .buy = true,
-                           .ioc = false,
-                           .order_id = 0, // this order ID will be chosen randomly by com
-                           .trader_id = trader_id});
+      // check for competing bids and penny the competing bid within pricing flexibility
+      price_t bid_price = (update.buy && best_bid + bid_edge <= update.price && update.price + 0.01 <= best_bid + bid_edge + edge_range) ? update.price + 0.01 : best_bid + bid_edge;
 
-      place_order(com, Common::Order{
-                           .ticker = 0,
-                           .price = ask_price,
-                           .quantity = std::min(750, (int)update.quantity),
-                           .buy = false,
-                           .ioc = false,
-                           .order_id = 0,
-                           .trader_id = trader_id});
+      // check for competing asks and penny the competing ask witihn pricing flexibility
+      price_t ask_price = (!update.buy && best_offer - ask_edge >= update.price && update.price - 0.01 >= best_offer - ask_edge - edge_range) ? update.price - 0.01 : best_offer - ask_edge;
+      quantity_t space = (position > 0) ? (2000 - position) : 2000 + position;
+
+      if (position < pos_limit)
+      {
+        place_order(com, Common::Order{
+                             .ticker = 0,
+                             .price = bid_price,
+                             .quantity = (space >= 0) && (position < 0) ? 1000 : std::min(400, (int)space),
+                             .buy = true,
+                             .ioc = false,
+                             .order_id = 0, // this order ID will be chosen randomly by com
+                             .trader_id = trader_id});
+      }
+
+      if (position > -pos_limit)
+      {
+        place_order(com, Common::Order{
+                             .ticker = 0,
+                             .price = ask_price,
+                             .quantity = (space >= 0) && (position > 0) ? 1000 : std::min(400, (int)space),
+                             .buy = false,
+                             .ioc = false,
+                             .order_id = 0,
+                             .trader_id = trader_id});
+      }
     }
   }
 
