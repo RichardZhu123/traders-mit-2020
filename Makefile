@@ -29,6 +29,12 @@ mybot_varun: competitor_varun.o
 competitor_varun.o: competitor_varun.cpp
 	$(CXX) competitor_varun.cpp $(CXXFLAGS) -c
 
+mybot_varun2: competitor_varun2.o
+	$(CXX) -o mybot_varun2 kirin.o competitor_varun2.o $(CXXFLAGS)
+
+competitor_varun2.o: competitor_varun2.cpp
+	$(CXX) competitor_varun2.cpp $(CXXFLAGS) -c
+
 
 clean:
 	rm -f competitor.o mybot

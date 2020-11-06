@@ -9,7 +9,10 @@
 #include <set>
 #include <unordered_map>
 #include <unordered_set>
+#include <queue>
 
+std::queue<double> lastPrices; // stores the last 1000 prices
+double smaThousand; // sma of up to the last 1000 prices
 
 struct LimitOrder {
   price_t price;
@@ -357,12 +360,15 @@ public:
 
     // a way to rate limit yourself
     int64_t now = time_ns();
-    if (now - last < 10e6) { // 10ms
+    if (now - last < 10e5) { // 1ms
       return;
     }
 
     last = now;
 
+    if (state.submitted.count(update.order_id)) {
+      return; // this is our own order
+    }
 
     // a way to cancel all your open orders
     for (const auto& x : state.open_orders) {
@@ -373,23 +379,52 @@ public:
       });
     }
 
-
     // a way to get your current position
     quantity_t position = state.positions[0];
+    quantity_t position_limit = 2000; // Position limit
 
     // a way to put in a bid of quantity 1 at the current best bid
-    double best_bid = state.get_bbo(0, true);
-    if (best_bid != 0.0 && position < 20) { // 0.0 denotes no bid
+    double ba_midpoint = (state.get_bbo(0, true) + state.get_bbo(0, false))/2.0; // bid-ask midpoint
+    if(lastPrices.size() < 1000) 
+      lastPrices.push(ba_midpoint);
+    smaThousand * lastPrices
+
+    if (update.buy && position < position_limit && update.quantity >= 5000) { // buy
 
       place_order(com, Common::Order{
         .ticker = 0,
-        .price = best_bid,
-        .quantity = 1,
+        .price = std::max(update.price + .02, 0.0),
+        .quantity = (position_limit - position)/4,
         .buy = true,
         .ioc = false,
         .order_id = 0, // this order ID will be chosen randomly by com
         .trader_id = trader_id
       });
+
+      /*
+      std::cout << "SELL ORDER" << std::endl;
+      std::cout << "quantity: " << position/2 << std::endl;
+      std::cout << "price: " << best_offer - .01 << std::endl;
+      std::cout << "best bid: " << best_bid << std::endl;
+      std::cout << "---------------------------------" << std::endl;*/
+    }
+    else if (!update.buy && position > -position_limit && update.quantity >= 5000) { // sell
+
+      place_order(com, Common::Order{
+        .ticker = 0,
+        .price = std::max(update.price - .02, 0.0),
+        .quantity = (position + position_limit)/4,
+        .buy = false,
+        .ioc = false,
+        .order_id = 0, // this order ID will be chosen randomly by com
+        .trader_id = trader_id
+      });
+      /*
+      std::cout << "BUY ORDER" << std::endl;
+      std::cout << "quantity: " << (position_limit - position)/5 << std::endl;
+      std::cout << "price: " << std::max(best_bid - .10, 0.0) << std::endl;
+      std::cout << "best bid: " << best_bid << std::endl;
+      std::cout << "---------------------------------" << std::endl;*/
     }
 
   }
