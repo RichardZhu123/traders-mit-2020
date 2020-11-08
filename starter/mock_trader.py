@@ -56,7 +56,7 @@ class Trader:
         for sym in self.won_auctions:
             to_buy[sym] = self.won_auctions[sym]
             self.sym_traded = sym
-            if self.won_auctions[sym] & fund_prices[sym] > self.max_abs_volume:
+            if self.won_auctions[sym] and abs(fund_prices[sym]) > self.max_abs_volume:
                 self.max_abs_volume = fund_prices[sym]
 
         return to_buy
@@ -96,7 +96,3 @@ class Trader:
                 trades[sym] = trades[sym] * multiplier
 
         return trades
-
-
-
-
