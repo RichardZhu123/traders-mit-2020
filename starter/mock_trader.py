@@ -54,10 +54,11 @@ class Trader:
 
         # TODO: PICK WHICH HEDGE FUND DATA YOU WANT TO BUY.
         for sym in self.won_auctions:
-            to_buy[sym] = self.won_auctions[sym]
-            self.sym_traded = sym
-            if self.won_auctions[sym] and abs(fund_prices[sym]) > self.max_abs_volume:
-                self.max_abs_volume = fund_prices[sym]
+            if self.won_auctions[sym]:
+                to_buy[sym] = true
+                self.sym_traded = sym
+                if abs(fund_prices[sym]) > self.max_abs_volume:
+                    self.max_abs_volume = fund_prices[sym]
 
         return to_buy
 
