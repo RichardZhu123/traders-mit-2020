@@ -16,7 +16,6 @@ class Trader:
         self.pnl_this_round = 0
 
         self.max_abs_volume = 0
-        self.sym_traded
 
         # Keep in mind these params.
         self.TIMESTEPS_PER_ROUND = 252
@@ -37,7 +36,11 @@ class Trader:
         Args:
             wins: dict[sym -> bool] telling you if you won.
         """
-        self.won_auctions = wins
+        # self.won_auctions = wins
+
+        # bad form, but effectively will only trade "D". No bids
+        # are made at auction
+        self.won_auctions["D"] = True
     
     def BuyInfo(self, time, stock_prices, fund_prices):
         """
@@ -51,12 +54,13 @@ class Trader:
             dict[symbol -> bool] of which symbols you choose to buy.
         """
         to_buy = {}
+        trading_sym = "D" # symbol to trade
 
         # TODO: PICK WHICH HEDGE FUND DATA YOU WANT TO BUY.
         for sym in self.won_auctions:
+            to_buy[sym] = False
             if self.won_auctions[sym]:
-                to_buy[sym] = true
-                self.sym_traded = sym
+                to_buy[sym] = True
                 if abs(fund_prices[sym]) > self.max_abs_volume:
                     self.max_abs_volume = fund_prices[sym]
 
@@ -77,12 +81,14 @@ class Trader:
                 and negative is sell/ short.
         """
         trades = {}
-
+        
         #TODO: PICK HOW TO MAKE TRADES.
         for sym in stock_prices:
-            trades[sym] = 0
+            if self.won_auctions[sym]:
+                trades[sym] = fund_info[sym]/self.max_abs_volume
+            else:
+                trades[sym] = 0
 
-        trades[self.sym_traded] = fund_info[self.sym_traded]/self.max_abs_volume
 
         # Be sure you don't trade more than self.POS_LIMIT_BY_SYMBOL of each.
         for sym in trades:

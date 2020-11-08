@@ -34,9 +34,10 @@ assert len(symbols) == len(stock_prices[0]) and len(symbols) == len(hedge_data[0
 
 
 class Test_1_Lose_All_Auctions(unittest.TestCase):
+    t = Trader()
     def __init__(self, *args, **kwargs):
         super(Test_1_Lose_All_Auctions, self).__init__(*args, **kwargs)
-        self.t = Trader()
+        
         self.profit = 0
 
     def test_bid_results(self):
@@ -76,9 +77,9 @@ class Test_1_Lose_All_Auctions(unittest.TestCase):
 
 
 class Test_2_Win_All_Auctions(unittest.TestCase):
+    t = Trader()
     def __init__(self, *args, **kwargs):
         super(Test_2_Win_All_Auctions, self).__init__(*args, **kwargs)
-        self.t = Trader()
         self.profit = 0
 
     def test_bid_results(self):
