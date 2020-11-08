@@ -54,7 +54,6 @@ class Trader:
             dict[symbol -> bool] of which symbols you choose to buy.
         """
         to_buy = {}
-        trading_sym = "D" # symbol to trade
 
         # TODO: PICK WHICH HEDGE FUND DATA YOU WANT TO BUY.
         for sym in self.won_auctions:
